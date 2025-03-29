@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Enrollment Form</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-icon {
+            margin-left: 10px;
+            font-size: 18px;
+            display: none;
+        }
+        .valid { color: #28a745; display: inline-block; }
+        .invalid { color: #dc3545; display: inline-block; }
+        .form-container {
+            max-width: 600px;
+            margin: 30px auto;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .form-group { margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <h2 class="text-center mb-4">Student Enrollment Form</h2>
+            <form id="studentForm">
+                <div class="form-group">
+                    <label for="rollNo">Roll No:</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="rollNo" required>
+                        <span id="rollNoStatus" class="input-group-text status-icon"></span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="fullName">Full Name:</label>
+                    <input type="text" class="form-control" id="fullName" disabled required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="class">Class:</label>
+                    <input type="text" class="form-control" id="class" disabled required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="birthDate">Birth Date (YYYY-MM-DD):</label>
+                    <input type="text" class="form-control" id="birthDate" disabled required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="address">Address:</label>
+                    <input type="text" class="form-control" id="address" disabled required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="enrollmentDate">Enrollment Date (YYYY-MM-DD):</label>
+                    <input type="text" class="form-control" id="enrollmentDate" disabled required>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-primary" id="saveBtn" disabled>Save</button>
+                    <button type="button" class="btn btn-info" id="updateBtn" disabled>Update</button>
+                    <button type="button" class="btn btn-danger" id="resetBtn">Reset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration for JSONPowerDB
+        const BASE_URL = "https://api.login2explore.com:5577";
+        const DB_NAME = "SCHOOL-DB";
+        const RELATION_NAME = "STUDENT-TABLE";
+        const API_KEY = "90934301|-31949202324334515|90957717"; // Replace with your actual API key
+
+        // DOM Elements
+        const rollNoInput = document.getElementById('rollNo');
+        const fullNameInput = document.getElementById('fullName');
+        const classInput = document.getElementById('class');
+        const birthDateInput = document.getElementById('birthDate');
+        const addressInput = document.getElementById('address');
+        const enrollmentDateInput = document.getElementById('enrollmentDate');
+        const saveBtn = document.getElementById('saveBtn');
+        const updateBtn = document.getElementById('updateBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const statusIcon = document.getElementById('rollNoStatus');
+
+        // Initialize form
+        document.addEventListener('DOMContentLoaded', resetForm);
+
+        // Event Listeners
+        rollNoInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                checkRollNumber();
+            }
+        });
+
+        saveBtn.addEventListener('click', saveStudent);
+        updateBtn.addEventListener('click', updateStudent);
+        resetBtn.addEventListener('click', resetForm);
+
+        // Functions
+        function resetForm() {
+            document.getElementById('studentForm').reset();
+            [fullNameInput, classInput, birthDateInput, addressInput, enrollmentDateInput].forEach(field => field.disabled = true);
+            [saveBtn, updateBtn].forEach(btn => btn.disabled = true);
+            rollNoInput.disabled = false;
+            statusIcon.className = 'status-icon';
+            statusIcon.textContent = '';
+            rollNoInput.focus();
+        }
+
+        async function checkRollNumber() {
+            const rollNo = rollNoInput.value.trim();
+            if (!rollNo) {
+                alert("Roll No cannot be empty");
+                return;
+            }
+
+            try {
+                const requestPayload = {
+                    token: API_KEY,
+                    dbName: DB_NAME,
+                    rel: RELATION_NAME,
+                    cmd: "GET",
+                    jsonStr: JSON.stringify({ RollNo: rollNo })
+                };
+
+                const response = await fetch(`${BASE_URL}/api/irl`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestPayload)
+                });
+
+                const data = await response.json();
+                if (data && data.status === 200 && data.record) {
+                    alert("Roll No exists. Updating record...");
+                    rollNoInput.disabled = true;
+                    updateBtn.disabled = false;
+                    displayStudent(data.record);
+                } else {
+                    alert("New Roll No. Enter details.");
+                    enableFormFields();
+                    saveBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error("Error checking Roll No:", error);
+                alert("Error checking Roll No");
+            }
+        }
+
+        function enableFormFields() {
+            [fullNameInput, classInput, birthDateInput, addressInput, enrollmentDateInput].forEach(field => field.disabled = false);
+        }
+
+        function displayStudent(student) {
+            fullNameInput.value = student.FullName;
+            classInput.value = student.Class;
+            birthDateInput.value = student.BirthDate;
+            addressInput.value = student.Address;
+            enrollmentDateInput.value = student.EnrollmentDate;
+        }
+
+        async function saveStudent() {
+            const studentData = {
+                RollNo: rollNoInput.value.trim(),
+                FullName: fullNameInput.value.trim(),
+                Class: classInput.value.trim(),
+                BirthDate: birthDateInput.value.trim(),
+                Address: addressInput.value.trim(),
+                EnrollmentDate: enrollmentDateInput.value.trim()
+            };
+
+            const requestPayload = {
+                token: API_KEY,
+                dbName: DB_NAME,
+                cmd: "PUT",
+                rel: RELATION_NAME,
+                jsonStr: JSON.stringify(studentData)
+            };
+
+            try {
+                const response = await fetch(`${BASE_URL}/api/iml`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestPayload)
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    alert("Student saved successfully");
+                    resetForm();
+                } else {
+                    alert("Error saving student");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Error saving student");
+            }
+        }
+    </script>
+</body>
+</html>
